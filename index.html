@@ -1,0 +1,65 @@
+<html>
+  <body>
+    <style>
+      #outgoing {
+        width: 600px;
+        word-wrap: break-word;
+        white-space: normal;
+      }
+    </style>
+    <form>
+      <textarea id="incoming"></textarea>
+      <button type="submit">submit</button>
+    </form>
+    <pre id="outgoing"></pre>
+    <script src="simplepeer.min.js"></script>
+    <script>
+        const initiator = location.hash === '#1'
+      const p = new SimplePeer({
+        initiator,
+        trickle: false,
+        channelConfig: {
+            ordered: false,
+            maxRetransmits: 0,
+            // maxPacketLifeTime: 0
+        }
+      })
+
+      p.on('error', err => console.log('error', err))
+
+      p.on('signal', data => {
+        console.log('SIGNAL', JSON.stringify(data))
+        document.querySelector('#outgoing').textContent = JSON.stringify(data)
+      })
+
+      document.querySelector('form').addEventListener('submit', ev => {
+        ev.preventDefault()
+        p.signal(JSON.parse(document.querySelector('#incoming').value))
+      })
+
+      p.on('connect', () => {
+        console.log('CONNECT')
+        // p.send('whatever' + Math.random())
+
+        setInterval(() => {
+            p.send(JSON.stringify({"type":"ping", time:Date.now()}))
+        }, 500)
+            
+
+      })
+
+      p.on('data', str => {
+        console.log('data: ' + str)
+        const e = JSON.parse(str) 
+        if(e.type == 'ping') {
+            console.log("trip time: ", Date.now() - e.time)
+            p.send(JSON.stringify({"type":"pong", time:e.time, at:Date.now() }))
+        }
+        else if(e.type == 'pong') {
+            console.log("reverse trip time: ", Date.now() - e.at, Date.now() - e.time)
+        }
+      })
+
+    </script>
+  </body>
+</html>
